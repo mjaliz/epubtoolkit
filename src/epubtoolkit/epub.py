@@ -42,7 +42,6 @@ class Epub:
             html_files.append(item_ref['idref'])
 
         html_file_paths = []
-        found = False
         for html_file in html_files:
             found = False
             for item in items:
@@ -61,7 +60,6 @@ class Epub:
         html_files_list = self._pars_content_opf()
 
         chapter_num = 1
-        all_sentences = []
         for html_filepath in html_files_list:
             output_dir = os.path.join(self._chapters_dir, f'c{chapter_num}')
             if not os.path.isdir(output_dir):
@@ -77,16 +75,22 @@ class Epub:
             n = get_number_of_digits_to_name(fragments_num)
 
             fragment_id = 1
+            translate_data = {"fragment_id": [], "sentence": [], "translation": []}
             for t, sents in sentences_zip:
                 span_list = []
                 t.string = ''
                 for s in sents:
-                    span_tag = soup.new_tag("span", attrs={"id": f'f{fragment_id:0>{n}}'})
-                    all_sentences.append(s.text)
+                    f_id = f'f{fragment_id:0>{n}}'
+                    span_tag = soup.new_tag("span", attrs={"id": f_id})
+                    translate_data["sentence"].append(s.text)
+                    translate_data["fragment_id"].append(f_id)
+                    translate_data["translation"].append("")
                     span_tag.string = s.text
                     span_list.append(span_tag)
                     fragment_id += 1
                     t.append(span_tag)
+
+            extract_sentence_to_translate(translate_data, self._epub_dir, html_filepath)
 
             with open(input_file, 'w') as f:
                 f.write(soup.prettify())
@@ -103,9 +107,7 @@ class Epub:
             try:
                 shutil.copy(audio_file_src, audio_file_dest)
             except:
-                pass
-
-        extract_sentence_to_translate(all_sentences, self._epub_dir, self._epub_file)
+                raise Exception("There is no audio dir in epub files, to sync epub with audio, make sure to have audio.")
 
     def _sync(self, alignment_radius=None, alignment_skip_penalty=None, language="eng"):
         chapter_dirs = (os.path.join(self._chapters_dir, f) for f in sorted(os.listdir(self._chapters_dir)))

@@ -3,6 +3,7 @@ import math
 import zipfile
 import spacy
 import pandas as pd
+from deep_translator import GoogleTranslator
 
 nlp = spacy.load('en_core_web_trf')
 
@@ -49,7 +50,23 @@ def sentence_segment(tags):
     return zip(tags, sentences), sentences_count
 
 
-def extract_sentence_to_translate(sentences_list, output_dir, epub_name):
+def extract_sentence_to_translate(translate_data, epub_files_path, epub_name):
+    output_dir = os.path.join(epub_files_path, "csvs")
+    if not os.path.isdir(output_dir):
+        os.makedirs(output_dir)
+
     file_name = drop_extension(epub_name)
-    df = pd.DataFrame({"sentence": sentences_list})
-    df.to_csv(os.path.join(output_dir, f'{file_name}.csv'), header=False)
+    df = pd.DataFrame(translate_data)
+    df.to_csv(os.path.join(output_dir, f'{file_name}.csv'), index=False)
+
+
+def translator(text):
+    return GoogleTranslator(source='en', target='fa').translate(text)
+
+
+def translate_csv(csvs_dir):
+    csv_files = (os.path.join(csvs_dir, f) for f in sorted(os.listdir(csvs_dir)))
+    for csv_file in csv_files:
+        df = pd.read_csv(csv_file)
+        df["translation"] = df["sentence"].apply(translator)
+        df.to_csv(csv_file, index=False)
