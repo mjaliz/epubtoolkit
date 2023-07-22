@@ -1,5 +1,7 @@
 import os
 import shutil
+
+import pandas as pd
 from bs4 import BeautifulSoup
 
 from .utils import (unzip_epub, get_number_of_digits_to_name,
@@ -21,6 +23,8 @@ class Epub:
         self._chapters_dir = os.path.join(self._epub_files_path, "..", "chapters")
         self._synced_epub_file = f'{drop_extension(self._epub_file)}_synced.epub'
         self._synced_epub_path = os.path.join(self._epub_dir, self._synced_epub_file)
+        self._current_dir = os.path.dirname(os.path.realpath(__file__))
+        self._epub_txt_files_base_dir = None
 
     def _unzip_epub(self):
         unzip_epub(self._epub_path, self._epub_files_path)
@@ -51,6 +55,9 @@ class Epub:
                     break
             if not found:
                 raise Exception(f"{html_file} not found in the manifest items")
+        if os.path.sep in html_file_paths[0]:
+            base_dir, _ = os.path.split(html_file_paths[0])
+            self._epub_txt_files_base_dir = base_dir
 
         return html_file_paths
 
@@ -107,7 +114,8 @@ class Epub:
             try:
                 shutil.copy(audio_file_src, audio_file_dest)
             except:
-                raise Exception("There is no audio dir in epub files, to sync epub with audio, make sure to have audio.")
+                raise Exception(
+                    "There is no audio dir in epub files, to sync epub with audio, make sure to have audio.")
 
     def _sync(self, alignment_radius=None, alignment_skip_penalty=None, language="eng"):
         chapter_dirs = (os.path.join(self._chapters_dir, f) for f in sorted(os.listdir(self._chapters_dir)))
@@ -129,12 +137,40 @@ class Epub:
                 print('✔ Text and audio have been successfully synced.')
 
             smil_files = (os.path.join(output_dir, f) for f in sorted(os.listdir(output_dir)))
+            smils_output = os.path.join(self._epub_files_path,
+                                        self._epub_txt_files_base_dir) if self._epub_txt_files_base_dir else self._epub_files_path
             for smil in smil_files:
                 try:
-                    shutil.move(smil, self._epub_files_path)
+                    shutil.move(smil, smils_output)
                 except Exception as ex:
                     self._cleanup()
                     raise Exception(ex, "If you want to resync the book, Please set the resync argument to True.")
+
+    def sync_translation(self, csvs_dir):
+        self._unzip_epub()
+
+        csv_files = (os.path.join(csvs_dir, f) for f in sorted(os.listdir(csvs_dir)))
+        for i, csv_file in enumerate(csv_files):
+            _, file_name = os.path.split(csv_file)
+            df = pd.read_csv(csv_file)
+            df.fillna("", inplace=True)
+
+            html_files_list = self._pars_content_opf()
+            text_list = ['<?xml version="1.0" encoding="utf-8"?> version="3.0">\n', '<ttx language="fa">\n']
+            for index, row in df.iterrows():
+                f_id = row['fragment_id']
+                translation = row['translation']
+                txt = f'\t<text src="../{html_files_list[i]}#{f_id}">{str(translation)}</text>\n'
+                text_list.append(txt)
+
+            text_list.append('</ttx>\n')
+            ttx_output = os.path.join(self._epub_files_path,
+                                      self._epub_txt_files_base_dir) if self._epub_txt_files_base_dir else self._epub_files_path
+            with open(os.path.join(ttx_output, f'{drop_extension(file_name)}.ttx'), 'w') as f:
+                f.write(''.join(text_list))
+
+        self._zip_epub()
+        self._cleanup()
 
     def sync_audio(self):
         self._unzip_epub()
@@ -144,5 +180,8 @@ class Epub:
         self._cleanup()
 
     def _cleanup(self):
-        shutil.rmtree(self._chapters_dir)
-        shutil.rmtree(self._epub_files_path)
+        try:
+            shutil.rmtree(self._chapters_dir)
+            shutil.rmtree(self._epub_files_path)
+        except FileNotFoundError as ex:
+            print(ex)
