@@ -10,7 +10,7 @@ class App extends Component {
   render() {
     return (
       <div className="container vh-100">
-        <ToastContainer />
+        <ToastContainer rtl/>
         <Router>
           <Routes>
             <Route exact path="/" element={<Home />} />

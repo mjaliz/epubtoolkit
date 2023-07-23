@@ -1,12 +1,13 @@
 import os
 import shutil
-
 import pandas as pd
+from fastapi import HTTPException, status
 from bs4 import BeautifulSoup
 
-from server.src.utils.utils import (unzip_epub, get_number_of_digits_to_name,
-                                    drop_extension, zip_epub, sentence_segment,
-                                    extract_sentence_to_translate)
+from utils.utils import (unzip_epub, get_number_of_digits_to_name,
+                         drop_extension, zip_epub, sentence_segment,
+                         extract_sentence_to_translate)
+from utils.translator import translations
 
 try:
     from afaligner import align
@@ -113,9 +114,9 @@ class Epub:
                 os.makedirs(audio_file_dest)
             try:
                 shutil.copy(audio_file_src, audio_file_dest)
-            except:
-                raise Exception(
-                    "There is no audio dir in epub files, to sync epub with audio, make sure to have audio.")
+            except FileNotFoundError as e:
+                raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST,
+                                    detail=translations.get("no_audio_file"))
 
     def _sync(self, alignment_radius=None, alignment_skip_penalty=None, language="eng"):
         chapter_dirs = (os.path.join(self._chapters_dir, f) for f in sorted(os.listdir(self._chapters_dir)))
@@ -145,6 +146,42 @@ class Epub:
                 except Exception as ex:
                     self._cleanup()
                     raise Exception(ex, "If you want to resync the book, Please set the resync argument to True.")
+
+    def extract_sentences(self):
+        html_files_list = self._pars_content_opf()
+
+        chapter_num = 1
+        for html_filepath in html_files_list:
+            output_dir = os.path.join(self._chapters_dir, f'c{chapter_num}')
+            if not os.path.isdir(output_dir):
+                os.makedirs(output_dir)
+            chapter_num += 1
+
+            input_file = os.path.join(self._epub_files_path, html_filepath)
+            with open(input_file, 'r') as fp:
+                soup = BeautifulSoup(fp, 'html.parser')
+
+            tags_with_text = [tag for tag in soup.body.find_all() if tag.text]
+            sentences_zip, fragments_num = sentence_segment(tags_with_text)
+            n = get_number_of_digits_to_name(fragments_num)
+
+            fragment_id = 1
+            translate_data = {"fragment_id": [], "sentence": [], "translation": []}
+            for t, sents in sentences_zip:
+                span_list = []
+                t.string = ''
+                for s in sents:
+                    f_id = f'f{fragment_id:0>{n}}'
+                    span_tag = soup.new_tag("span", attrs={"id": f_id})
+                    translate_data["sentence"].append(s.text)
+                    translate_data["fragment_id"].append(f_id)
+                    translate_data["translation"].append("")
+                    span_tag.string = s.text
+                    span_list.append(span_tag)
+                    fragment_id += 1
+                    t.append(span_tag)
+
+            extract_sentence_to_translate(translate_data, self._epub_dir, html_filepath)
 
     def sync_translation(self, csvs_dir):
         self._unzip_epub()

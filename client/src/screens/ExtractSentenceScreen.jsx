@@ -18,8 +18,7 @@ const ExtractSentenceScreen = () => {
                 const {data} = await http.post("/extract_sentence", formData, {headers: {"Content-Type": "multipart/form-data"}})
                 console.log(data)
             } catch (e) {
-                console.log(e)
-                toast.error(e.response.statusText)
+                toast.error(e.response.data.message.text)
             }
             setLoading(false)
         }
@@ -36,7 +35,7 @@ const ExtractSentenceScreen = () => {
                         <span className="m-2">Processing...</span>
                     </>
                 )}
-                Extract Sentence
+                {!loading && <span>Extract Sentence</span>}
             </button>
         </div>
     );
