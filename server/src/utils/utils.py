@@ -20,9 +20,7 @@ def unzip_epub(filepath, out_path):
         zip_ref.extractall(out_path)
 
 
-def zip_epub(filepath, out_path):
-    # shutil.make_archive(out_path, 'zip', filepath)
-
+def zip_file(filepath, out_path):
     def zipdir(path, ziph):
         # ziph is zipfile handle
         for root, dirs, files in os.walk(path):
@@ -50,14 +48,19 @@ def sentence_segment(tags):
     return zip(tags, sentences), sentences_count
 
 
-def extract_sentence_to_translate(translate_data, epub_files_path, epub_name):
+def extract_sentence_to_translate(translate_data_list, epub_files_path):
     output_dir = os.path.join(epub_files_path, "csvs")
     if not os.path.isdir(output_dir):
         os.makedirs(output_dir)
 
-    file_name = drop_extension(epub_name)
-    df = pd.DataFrame(translate_data)
-    df.to_csv(os.path.join(output_dir, f'{file_name}.csv'), index=False)
+    for td in translate_data_list:
+        epub_name = td['epub_name']
+        translate_data = td['translate_data']
+        file_name = drop_extension(epub_name)
+        df = pd.DataFrame(translate_data)
+        df.to_csv(os.path.join(output_dir, f'{file_name}.csv'), index=False)
+
+    zip_file(output_dir, os.path.join(epub_files_path, "csvs.zip"))
 
 
 def translator(text):

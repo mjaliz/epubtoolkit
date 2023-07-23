@@ -1,11 +1,12 @@
 import React from "react";
 import {useState} from "react";
-import { toast } from "react-toastify";
+import {toast} from "react-toastify";
 import http from "../services/httpService";
 
 const ExtractSentenceScreen = () => {
     const [file, setFile] = useState(null)
     const [loading, setLoading] = useState(false)
+    const [success, setSuccess] = useState(false)
     const handleSelect = (e) => {
         setFile(e.target.files[0])
     };
@@ -16,12 +17,17 @@ const ExtractSentenceScreen = () => {
             setLoading(true)
             try {
                 const {data} = await http.post("/extract_sentence", formData, {headers: {"Content-Type": "multipart/form-data"}})
+                setSuccess(true)
                 console.log(data)
             } catch (e) {
-                toast.error(e.response.data.message.text)
+                toast.error(e.response.data?.message.text)
             }
             setLoading(false)
         }
+    }
+    const handleDownload = async () => {
+        const {data} = await http.get("/download")
+        console.log(data)
     }
     return (
         <div className="h-100 d-flex flex-column align-items-start justify-content-start py-5">
@@ -37,6 +43,7 @@ const ExtractSentenceScreen = () => {
                 )}
                 {!loading && <span>Extract Sentence</span>}
             </button>
+            <a className="btn btn-primary" download href="/download">Save</a>
         </div>
     );
 };

@@ -1,7 +1,8 @@
 import os
-from fastapi import FastAPI, UploadFile, HTTPException, status
+from fastapi import FastAPI, UploadFile, HTTPException, status, Request
 from fastapi.responses import JSONResponse
 from starlette.exceptions import HTTPException as StarletteHTTPException
+from starlette.responses import FileResponse
 
 from utils.utils import drop_extension
 from utils.translator import translations
@@ -38,6 +39,13 @@ async def extract_sentence(file: UploadFile):
         f.write(file.file.read())
 
     epub = Epub(book_dir)
-    epub.sync_audio()
+    epub.extract_sentence()
 
-    return "ok"
+    return {"data": book_dir}
+
+
+@app.get("/download")
+async def download(req: Request):
+    file_path = os.path.join(current_dir, "..", "..", "books", "Forrest_Gump-John_Escott", "csvs.zip")
+    headers = {'Content-Disposition': 'attachment; filename="csvs.zip'}
+    return FileResponse(path=file_path, status_code=status.HTTP_200_OK, headers=headers, media_type='application/zip')

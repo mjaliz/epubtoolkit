@@ -5,7 +5,7 @@ from fastapi import HTTPException, status
 from bs4 import BeautifulSoup
 
 from utils.utils import (unzip_epub, get_number_of_digits_to_name,
-                         drop_extension, zip_epub, sentence_segment,
+                         drop_extension, zip_file, sentence_segment,
                          extract_sentence_to_translate)
 from utils.translator import translations
 
@@ -31,9 +31,10 @@ class Epub:
         unzip_epub(self._epub_path, self._epub_files_path)
 
     def _zip_epub(self):
-        zip_epub(self._epub_files_path, self._synced_epub_path)
+        zip_file(self._epub_files_path, self._synced_epub_path)
 
     def _pars_content_opf(self):
+        self._unzip_epub()
         with open(os.path.join(self._epub_files_path, "content.opf")) as fp:
             soup = BeautifulSoup(fp, "xml")
 
@@ -69,37 +70,9 @@ class Epub:
 
         chapter_num = 1
         for html_filepath in html_files_list:
-            output_dir = os.path.join(self._chapters_dir, f'c{chapter_num}')
-            if not os.path.isdir(output_dir):
-                os.makedirs(output_dir)
+            soup, input_file, output_dir, _ = self._extract_sentences(html_filepath, chapter_num)
+
             chapter_num += 1
-
-            input_file = os.path.join(self._epub_files_path, html_filepath)
-            with open(input_file, 'r') as fp:
-                soup = BeautifulSoup(fp, 'html.parser')
-
-            tags_with_text = [tag for tag in soup.body.find_all() if tag.text]
-            sentences_zip, fragments_num = sentence_segment(tags_with_text)
-            n = get_number_of_digits_to_name(fragments_num)
-
-            fragment_id = 1
-            translate_data = {"fragment_id": [], "sentence": [], "translation": []}
-            for t, sents in sentences_zip:
-                span_list = []
-                t.string = ''
-                for s in sents:
-                    f_id = f'f{fragment_id:0>{n}}'
-                    span_tag = soup.new_tag("span", attrs={"id": f_id})
-                    translate_data["sentence"].append(s.text)
-                    translate_data["fragment_id"].append(f_id)
-                    translate_data["translation"].append("")
-                    span_tag.string = s.text
-                    span_list.append(span_tag)
-                    fragment_id += 1
-                    t.append(span_tag)
-
-            extract_sentence_to_translate(translate_data, self._epub_dir, html_filepath)
-
             with open(input_file, 'w') as f:
                 f.write(soup.prettify())
 
@@ -147,41 +120,47 @@ class Epub:
                     self._cleanup()
                     raise Exception(ex, "If you want to resync the book, Please set the resync argument to True.")
 
-    def extract_sentences(self):
+    def _extract_sentences(self, html_filepath, chapter_num):
+        output_dir = os.path.join(self._chapters_dir, f'c{chapter_num}')
+        if not os.path.isdir(output_dir):
+            os.makedirs(output_dir)
+
+        input_file = os.path.join(self._epub_files_path, html_filepath)
+        with open(input_file, 'r') as fp:
+            soup = BeautifulSoup(fp, 'html.parser')
+
+        tags_with_text = [tag for tag in soup.body.find_all() if tag.text]
+        sentences_zip, fragments_num = sentence_segment(tags_with_text)
+        n = get_number_of_digits_to_name(fragments_num)
+
+        fragment_id = 1
+        translate_data = {"fragment_id": [], "sentence": [], "translation": []}
+        for t, sents in sentences_zip:
+            span_list = []
+            t.string = ''
+            for s in sents:
+                f_id = f'f{fragment_id:0>{n}}'
+                span_tag = soup.new_tag("span", attrs={"id": f_id})
+                translate_data["sentence"].append(s.text)
+                translate_data["fragment_id"].append(f_id)
+                translate_data["translation"].append("")
+                span_tag.string = s.text
+                span_list.append(span_tag)
+                fragment_id += 1
+                t.append(span_tag)
+        return soup, input_file, output_dir, translate_data
+
+    def extract_sentence(self):
         html_files_list = self._pars_content_opf()
-
         chapter_num = 1
+        translate_data_list = []
         for html_filepath in html_files_list:
-            output_dir = os.path.join(self._chapters_dir, f'c{chapter_num}')
-            if not os.path.isdir(output_dir):
-                os.makedirs(output_dir)
+            soup, input_file, output_dir, translate_data = self._extract_sentences(html_filepath, chapter_num)
+            translate_data_dict = {'epub_name': html_filepath, 'translate_data': translate_data}
+            translate_data_list.append(translate_data_dict)
             chapter_num += 1
-
-            input_file = os.path.join(self._epub_files_path, html_filepath)
-            with open(input_file, 'r') as fp:
-                soup = BeautifulSoup(fp, 'html.parser')
-
-            tags_with_text = [tag for tag in soup.body.find_all() if tag.text]
-            sentences_zip, fragments_num = sentence_segment(tags_with_text)
-            n = get_number_of_digits_to_name(fragments_num)
-
-            fragment_id = 1
-            translate_data = {"fragment_id": [], "sentence": [], "translation": []}
-            for t, sents in sentences_zip:
-                span_list = []
-                t.string = ''
-                for s in sents:
-                    f_id = f'f{fragment_id:0>{n}}'
-                    span_tag = soup.new_tag("span", attrs={"id": f_id})
-                    translate_data["sentence"].append(s.text)
-                    translate_data["fragment_id"].append(f_id)
-                    translate_data["translation"].append("")
-                    span_tag.string = s.text
-                    span_list.append(span_tag)
-                    fragment_id += 1
-                    t.append(span_tag)
-
-            extract_sentence_to_translate(translate_data, self._epub_dir, html_filepath)
+        extract_sentence_to_translate(translate_data_list, self._epub_dir)
+        shutil.rmtree(self._chapters_dir)
 
     def sync_translation(self, csvs_dir):
         self._unzip_epub()
