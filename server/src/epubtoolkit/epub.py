@@ -4,9 +4,9 @@ import shutil
 import pandas as pd
 from bs4 import BeautifulSoup
 
-from .utils import (unzip_epub, get_number_of_digits_to_name,
-                    drop_extension, zip_epub, sentence_segment,
-                    extract_sentence_to_translate)
+from server.src.utils.utils import (unzip_epub, get_number_of_digits_to_name,
+                                    drop_extension, zip_epub, sentence_segment,
+                                    extract_sentence_to_translate)
 
 try:
     from afaligner import align
