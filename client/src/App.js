@@ -5,6 +5,7 @@ import "react-toastify/dist/ReactToastify.css";
 
 import Home from "./screens/Home";
 import ExtractSentenceScreen from "./screens/ExtractSentenceScreen";
+import SyncAudioScreen from "./screens/SyncAudioScreen";
 
 class App extends Component {
     render() {
@@ -18,6 +19,11 @@ class App extends Component {
                             exact
                             path="/extract_sentence"
                             element={<ExtractSentenceScreen/>}
+                        />
+                        <Route
+                            exact
+                            path="/sync_audio"
+                            element={<SyncAudioScreen/>}
                         />
                     </Routes>
                 </Router>

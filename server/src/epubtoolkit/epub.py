@@ -35,6 +35,7 @@ class Epub:
 
     def _pars_content_opf(self):
         self._unzip_epub()
+
         with open(os.path.join(self._epub_files_path, "content.opf")) as fp:
             soup = BeautifulSoup(fp, "xml")
 
@@ -165,15 +166,13 @@ class Epub:
         shutil.rmtree(self._chapters_dir)
 
     def sync_translation(self, csvs_dir):
-        self._unzip_epub()
-
+        html_files_list = self._pars_content_opf()
         csv_files = (os.path.join(csvs_dir, f) for f in sorted(os.listdir(csvs_dir)))
         for i, csv_file in enumerate(csv_files):
             _, file_name = os.path.split(csv_file)
             df = pd.read_csv(csv_file)
             df.fillna("", inplace=True)
 
-            html_files_list = self._pars_content_opf()
             text_list = ['<?xml version="1.0" encoding="utf-8"?> version="3.0">\n', '<ttx language="fa">\n']
             for index, row in df.iterrows():
                 f_id = row['fragment_id']
@@ -191,7 +190,6 @@ class Epub:
         self._cleanup()
 
     def sync_audio(self):
-        self._unzip_epub()
         self._set_id_tag()
         self._sync()
         self._zip_epub()

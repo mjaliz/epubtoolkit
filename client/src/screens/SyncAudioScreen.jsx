@@ -3,7 +3,7 @@ import {useState} from "react";
 import {toast} from "react-toastify";
 import http from "../services/httpService";
 
-const ExtractSentenceScreen = () => {
+const SyncAudioScreen = () => {
     const [file, setFile] = useState(null);
     const [bookPath, setBookPath] = useState(undefined);
     const [loading, setLoading] = useState(false);
@@ -23,6 +23,7 @@ const ExtractSentenceScreen = () => {
                 });
                 setSuccess(true);
                 setBookPath(data.data);
+                console.log(data.data);
             } catch (e) {
                 toast.error(e.response.data?.message.text);
             }
@@ -30,7 +31,7 @@ const ExtractSentenceScreen = () => {
         }
     };
     const handleDownload = async () => {
-        const response = await http.get(`/download_translations?book_path=${bookPath}`, {
+        const response = await http.get(`/download?book_path=${bookPath}`, {
             responseType: "blob",
         });
         let headerLine = response.headers["content-disposition"];
@@ -70,7 +71,7 @@ const ExtractSentenceScreen = () => {
                             <span className="m-2">Processing...</span>
                         </>
                     )}
-                    {!loading && <span>Extract Sentence</span>}
+                    {!loading && <span>Sync Audio</span>}
                 </button>
                 {success && bookPath && (
                     <button className="btn btn-success m-2" onClick={handleDownload}>
@@ -82,4 +83,4 @@ const ExtractSentenceScreen = () => {
     );
 };
 
-export default ExtractSentenceScreen;
+export default SyncAudioScreen;
