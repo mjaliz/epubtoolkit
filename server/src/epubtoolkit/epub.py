@@ -2,12 +2,12 @@ import os
 import shutil
 import pandas as pd
 from fastapi import HTTPException, status
-from bs4 import BeautifulSoup
+from bs4 import BeautifulSoup, Tag
 
-from utils.utils import (unzip_epub, get_number_of_digits_to_name,
-                         drop_extension, zip_file, sentence_segment,
-                         extract_sentence_to_translate)
-from utils.translator import translations
+from ..utils.utils import (unzip_epub, get_number_of_digits_to_name,
+                           drop_extension, zip_file, sentence_segment,
+                           extract_sentence_to_translate)
+from ..utils.translator import translations
 
 try:
     from afaligner import align
@@ -129,7 +129,9 @@ class Epub:
         with open(input_file, 'r') as fp:
             soup = BeautifulSoup(fp, 'html.parser')
 
-        tags_with_text = [tag for tag in soup.body.find_all() if tag.text]
+        tags_with_text = [tag for tag in soup.find_all() if
+                          len(tag.contents) == 1 and not isinstance(tag.contents[0],
+                                                                    Tag) and tag.name != 'title' and tag.text.strip()]
         sentences_zip, fragments_num = sentence_segment(tags_with_text)
         n = get_number_of_digits_to_name(fragments_num)
 
