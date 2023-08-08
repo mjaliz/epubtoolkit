@@ -6,7 +6,7 @@ from bs4 import BeautifulSoup, Tag
 
 from ..utils.utils import (unzip_epub, get_number_of_digits_to_name,
                            drop_extension, zip_file, sentence_segment,
-                           extract_sentence_to_translate)
+                           extract_sentence_to_translate, find_file_dir)
 from ..utils.translator import translations
 
 try:
@@ -35,7 +35,7 @@ class Epub:
 
     def _pars_content_opf(self):
         self._unzip_epub()
-
+        self._epub_files_path = find_file_dir("content.opf", self._epub_files_path)
         with open(os.path.join(self._epub_files_path, "content.opf")) as fp:
             soup = BeautifulSoup(fp, "xml")
 
@@ -49,6 +49,7 @@ class Epub:
             html_files.append(item_ref['idref'])
 
         html_file_paths = []
+        audio_file_paths = []
         for html_file in html_files:
             found = False
             for item in items:
@@ -58,19 +59,29 @@ class Epub:
                     break
             if not found:
                 raise Exception(f"{html_file} not found in the manifest items")
+
+        for item in items:
+            if item["media-type"] == "audio/mpeg":
+                audio_file_paths.append(item["href"])
+
         if os.path.sep in html_file_paths[0]:
             base_dir, _ = os.path.split(html_file_paths[0])
             self._epub_txt_files_base_dir = base_dir
 
-        return html_file_paths
+        html_file_paths.sort()
+        audio_file_paths.sort()
+        return html_file_paths, audio_file_paths
 
     def _set_id_tag(self):
 
-        audio_dir = os.path.join(self._epub_files_path, "audio")
-        html_files_list = self._pars_content_opf()
-
+        html_files_list, audio_files_list = self._pars_content_opf()
+        if len(html_files_list) != len(audio_files_list):
+            raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST,
+                                detail=translations.get("audio_book_files_not_match"))
         chapter_num = 1
-        for html_filepath in html_files_list:
+        for i in range(len(html_files_list)):
+            html_filepath = html_files_list[i]
+            audio_file_src = os.path.join(self._epub_files_path, audio_files_list[i])
             soup, input_file, output_dir, _ = self._extract_sentences(html_filepath, chapter_num)
 
             chapter_num += 1
@@ -82,7 +93,6 @@ class Epub:
                 os.makedirs(text_dir)
             shutil.copy(input_file, text_dir)
 
-            audio_file_src = os.path.join(audio_dir, f'{drop_extension(html_filepath)}.mp3')
             audio_file_dest = os.path.join(output_dir, "audio")
             if not os.path.isdir(audio_file_dest):
                 os.makedirs(audio_file_dest)
@@ -154,7 +164,7 @@ class Epub:
         return soup, input_file, output_dir, translate_data
 
     def extract_sentence(self):
-        html_files_list = self._pars_content_opf()
+        html_files_list, _ = self._pars_content_opf()
         chapter_num = 1
         translate_data_list = []
         for html_filepath in html_files_list:

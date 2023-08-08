@@ -7,5 +7,6 @@ translations = {
     "invalid_json": "Invalid JSON data",
     "sentence_extracted_already": "جملات این کتاب قبلا برای ترجمه استخراج شده است",
     "no_audio_file": "در کتاب بارگذاری شده فایل صوتی موجود نیست",
-    "book_not_uploaded": "کتاب مورد نظر بارگذاری نشده است"
+    "book_not_uploaded": "کتاب مورد نظر بارگذاری نشده است",
+    "audio_book_files_not_match": "تعداد فایل های صوتی با فایل های متنی برابر نیستند"
 }

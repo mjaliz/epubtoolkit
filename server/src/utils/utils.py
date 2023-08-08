@@ -33,6 +33,12 @@ def zip_file(filepath, out_path):
         zipdir(filepath, zipf)
 
 
+def find_file_dir(file_name, path):
+    for root, dirs, files in os.walk(path):
+        if file_name in files:
+            return root
+
+
 def drop_extension(filename):
     return filename.split('.')[0]
 

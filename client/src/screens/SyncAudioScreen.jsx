@@ -18,7 +18,7 @@ const SyncAudioScreen = () => {
             formData.append("file", file);
             setLoading(true);
             try {
-                const {data} = await http.post("/extract_sentence", formData, {
+                const {data} = await http.post("/sync_audio", formData, {
                     headers: {"Content-Type": "multipart/form-data"},
                 });
                 setSuccess(true);
