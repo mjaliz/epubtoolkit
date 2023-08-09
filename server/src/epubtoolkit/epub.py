@@ -4,7 +4,7 @@ import pandas as pd
 from fastapi import HTTPException, status
 from bs4 import BeautifulSoup, Tag
 
-from ..utils.utils import (unzip_epub, get_number_of_digits_to_name,
+from ..utils.utils import (unzip_file, get_number_of_digits_to_name,
                            drop_extension, zip_file, sentence_segment,
                            extract_sentence_to_translate, find_file_dir)
 from ..utils.translator import translations
@@ -23,15 +23,17 @@ class Epub:
         self._epub_files_path = os.path.join(self._epub_dir, "epub_files")
         self._chapters_dir = os.path.join(self._epub_files_path, "..", "chapters")
         self._synced_epub_file = f'{drop_extension(self._epub_file)}_synced.epub'
+        self._synced_t_epub_file = f'{drop_extension(self._epub_file)}_synced-t.epub'
         self._synced_epub_path = os.path.join(self._epub_dir, self._synced_epub_file)
+        self._synced_t_epub_path = os.path.join(self._epub_dir, self._synced_t_epub_file)
         self._current_dir = os.path.dirname(os.path.realpath(__file__))
         self._epub_txt_files_base_dir = None
 
     def _unzip_epub(self):
-        unzip_epub(self._epub_path, self._epub_files_path)
+        unzip_file(self._epub_path, self._epub_files_path)
 
-    def _zip_epub(self):
-        zip_file(self._epub_files_path, self._synced_epub_path)
+    def _zip_epub(self, synced_path):
+        zip_file(self._epub_files_path, synced_path)
 
     def _pars_content_opf(self):
         self._unzip_epub()
@@ -175,9 +177,13 @@ class Epub:
         extract_sentence_to_translate(translate_data_list, self._epub_dir)
         shutil.rmtree(self._chapters_dir)
 
-    def sync_translation(self, csvs_dir):
+    def sync_translation(self, csvs):
+        csvs_dir, csvs_file = os.path.split(csvs)
+        unzip_file(csvs, csvs_dir)
+        csvs_path = drop_extension(csvs_file)
+        extracted_csvs_path = os.path.join(csvs_dir, csvs_path)
         html_files_list = self._pars_content_opf()
-        csv_files = (os.path.join(csvs_dir, f) for f in sorted(os.listdir(csvs_dir)))
+        csv_files = (os.path.join(extracted_csvs_path, f) for f in sorted(os.listdir(extracted_csvs_path)))
         for i, csv_file in enumerate(csv_files):
             _, file_name = os.path.split(csv_file)
             df = pd.read_csv(csv_file)
@@ -196,18 +202,17 @@ class Epub:
             with open(os.path.join(ttx_output, f'{drop_extension(file_name)}.ttx'), 'w') as f:
                 f.write(''.join(text_list))
 
-        self._zip_epub()
+        self._zip_epub(self._synced_t_epub_path)
         self._cleanup()
 
     def sync_audio(self):
         self._set_id_tag()
         self._sync()
-        self._zip_epub()
+        self._zip_epub(self._synced_epub_path)
         self._cleanup()
 
     def _cleanup(self):
-        try:
+        if os.path.isdir(self._chapters_dir):
             shutil.rmtree(self._chapters_dir)
+        if os.path.isdir(self._epub_files_path):
             shutil.rmtree(self._epub_files_path)
-        except FileNotFoundError as ex:
-            print(ex)

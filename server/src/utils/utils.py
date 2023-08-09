@@ -15,7 +15,7 @@ def get_number_of_digits_to_name(num):
     return math.floor(math.log10(num)) + 1
 
 
-def unzip_epub(filepath, out_path):
+def unzip_file(filepath, out_path):
     with zipfile.ZipFile(filepath, 'r') as zip_ref:
         zip_ref.extractall(out_path)
 
@@ -81,3 +81,8 @@ def translate_csv(csvs_dir):
         df = pd.read_csv(csv_file)
         df["translation"] = df["sentence"].apply(translator)
         df.to_csv(csv_file, index=False)
+
+
+if __name__ == "__main__":
+    translate_csv(
+        "/home/mrph/Desktop/LEARNit/epubtoolkit/books/B1) Mr_Bean_in_Town-Richard_Curtis/B1) Mr_Bean_in_Town-Richard_Curtis_csvs")

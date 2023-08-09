@@ -3,22 +3,28 @@ import {useState} from "react";
 import {toast} from "react-toastify";
 import http from "../services/httpService";
 
-const SyncAudioScreen = () => {
-    const [file, setFile] = useState(null);
+const SyncTranslationScreen = () => {
+    const [bookFile, setBookFile] = useState(null);
+    const [translationFile, setTranslationFile] = useState(null);
     const [bookPath, setBookPath] = useState(undefined);
     const [loading, setLoading] = useState(false);
     const [success, setSuccess] = useState(false);
-    const handleSelect = (e) => {
-        setFile(e.target.files[0]);
+    const handleSelectBook = (e) => {
+        setBookFile(e.target.files[0]);
+        setSuccess(false)
+    };
+    const handleSelectTranslation = (e) => {
+        setTranslationFile(e.target.files[0]);
         setSuccess(false)
     };
     const handleSubmit = async () => {
-        if (file !== null) {
+        if (bookFile !== null && translationFile !== null) {
             const formData = new FormData();
-            formData.append("file", file);
+            formData.append("book_file", bookFile);
+            formData.append("translation_file", translationFile);
             setLoading(true);
             try {
-                const {data} = await http.post("/sync_audio", formData, {
+                const {data} = await http.post("/sync_translation", formData, {
                     headers: {"Content-Type": "multipart/form-data"},
                 });
                 setSuccess(true);
@@ -30,7 +36,7 @@ const SyncAudioScreen = () => {
         }
     };
     const handleDownload = async () => {
-        const response = await http.get(`/download_synced_audio?book_path=${bookPath}`, {
+        const response = await http.get(`/download_synced_translation?book_path=${bookPath}`, {
             responseType: "blob",
         });
         let headerLine = response.headers["content-disposition"];
@@ -46,18 +52,28 @@ const SyncAudioScreen = () => {
     return (
         <div className="h-100 d-flex flex-column align-items-start justify-content-start py-5">
             <div className="input-group mb-3">
+                <label className="input-group-text" htmlFor="book">Book</label>
                 <input
                     type="file"
                     className="form-control"
-                    id="inputGroupFile02"
-                    onChange={handleSelect}
+                    id="book"
+                    onChange={handleSelectBook}
+                />
+            </div>
+            <div className="input-group mb-3">
+                <label className="input-group-text" htmlFor="translation">Translation</label>
+                <input
+                    type="file"
+                    className="form-control"
+                    id="translation"
+                    onChange={handleSelectTranslation}
                 />
             </div>
             <div>
                 <button
                     className="btn btn-primary"
                     type="button"
-                    disabled={loading || !file || success}
+                    disabled={loading || !bookFile || !translationFile || success}
                     onClick={handleSubmit}
                 >
                     {loading && (
@@ -70,7 +86,7 @@ const SyncAudioScreen = () => {
                             <span className="m-2">Processing...</span>
                         </>
                     )}
-                    {!loading && <span>Sync Audio</span>}
+                    {!loading && <span>Sync Translation</span>}
                 </button>
                 {success && bookPath && (
                     <button className="btn btn-success m-2" onClick={handleDownload}>
@@ -82,4 +98,4 @@ const SyncAudioScreen = () => {
     );
 };
 
-export default SyncAudioScreen;
+export default SyncTranslationScreen;
