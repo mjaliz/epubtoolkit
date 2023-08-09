@@ -31,7 +31,7 @@ const SyncAudioScreen = () => {
         }
     };
     const handleDownload = async () => {
-        const response = await http.get(`/download?book_path=${bookPath}`, {
+        const response = await http.get(`/download_synced_epub?book_path=${bookPath}`, {
             responseType: "blob",
         });
         let headerLine = response.headers["content-disposition"];

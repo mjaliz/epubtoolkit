@@ -66,3 +66,14 @@ async def extract_sentence(file: UploadFile):
     epub.sync_audio()
 
     return JSONResponse(content={"data": book_base_dir}, status_code=status.HTTP_201_CREATED)
+
+
+@app.get("/download_synced_epub")
+async def download(book_path: str):
+    if not os.path.isdir(book_path):
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=translations.get("book_not_uploaded"))
+    file_name = f'{book_path.split("/")[-1]}_synced.epub'
+    file_path = os.path.join(book_path, file_name)
+    headers = {'Content-Disposition': f'attachment; filename="{file_name}"'}
+    return FileResponse(path=file_path, status_code=status.HTTP_200_OK, headers=headers,
+                        media_type='application/zip+epub')
