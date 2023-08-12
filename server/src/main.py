@@ -2,14 +2,18 @@ import os
 import shutil
 from fastapi import FastAPI, UploadFile, HTTPException, status, Request, Query
 from fastapi.responses import JSONResponse
+from fastapi.responses import HTMLResponse
+from fastapi.staticfiles import StaticFiles
+from fastapi.templating import Jinja2Templates
 from starlette.exceptions import HTTPException as StarletteHTTPException
 from starlette.responses import FileResponse
 from tempfile import gettempdir
 
-from .utils.utils import drop_extension
-from .utils.translator import translations
-from .epubtoolkit.epub import Epub
+from utils.utils import drop_extension
+from utils.translator import translations
+from epubtoolkit.epub import Epub
 
+current_dir = os.path.dirname(os.path.realpath(__file__))
 temp_dir = gettempdir()
 books_dir = os.path.join(temp_dir, "books")
 translations_dir = os.path.join(temp_dir, "books", "translations")
@@ -17,6 +21,8 @@ if not os.path.isdir(books_dir):
     os.makedirs(books_dir)
 
 app = FastAPI()
+app.mount("/static", StaticFiles(directory=os.path.join(current_dir, "build", "static")), name="static")
+templates = Jinja2Templates(directory=os.path.join(current_dir, "build"))
 
 
 @app.exception_handler(StarletteHTTPException)
@@ -38,6 +44,11 @@ def upload_file(file: UploadFile, base_dir):
     with open(book_dir, 'wb') as f:
         f.write(file.file.read())
     return book_dir, book_base_dir
+
+
+@app.get("/", response_class=HTMLResponse)
+def index(request: Request):
+    return templates.TemplateResponse("index.html", {"request": request})
 
 
 @app.post("/extract_sentence")

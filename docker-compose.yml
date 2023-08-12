@@ -18,7 +18,7 @@ services:
     build:
       context: ./server
       dockerfile: ./Dockerfile
-    working_dir: ./server/src
+    working_dir: /src
     restart: always
     command: uvicorn main:app --host 0.0.0.0 --port 8000
 #
