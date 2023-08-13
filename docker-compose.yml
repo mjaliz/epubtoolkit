@@ -1,27 +1,21 @@
-version: '3.8'
+version: "3.8"
 
 services:
-#  frontend:
-#    image: index.docker.io/jclement/fastapi-deployment-sample-frontend:latest
-#    restart: always
-#    ports:
-#      - "80:80"
-#      - "443:443"
-#    volumes:
-#      - ./Caddyfile:/etc/caddy/Caddyfile
-#      - caddy-data:/data
-#      - caddy-config:/config
-#    depends_on:
-#      - backend
-
   server:
-    build:
-      context: ./server
-      dockerfile: ./Dockerfile
-    working_dir: /src
-    restart: always
-    command: uvicorn main:app --host 0.0.0.0 --port 8000
-#
-#volumes:
-#  caddy-data:
-#  caddy-config:
+    build: ./server
+    command: uvicorn app.main:app --root-path /api --proxy-headers --host 0.0.0.0 --port 8000
+
+  clinet:
+    build: ./client
+    ports:
+      - "8080:80"
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile
+      - caddy-data:/data
+      - caddy-config:/config
+    depends_on:
+      - server
+
+volumes:
+  caddy-data:
+  caddy-config:

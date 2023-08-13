@@ -18,7 +18,7 @@ const ExtractSentenceScreen = () => {
             formData.append("file", file);
             setLoading(true);
             try {
-                const {data} = await http.post("/extract_sentence", formData, {
+                const {data} = await http.post("/api/extract_sentence", formData, {
                     headers: {"Content-Type": "multipart/form-data"},
                 });
                 setSuccess(true);
@@ -30,7 +30,7 @@ const ExtractSentenceScreen = () => {
         }
     };
     const handleDownload = async () => {
-        const response = await http.get(`/download_translations?book_path=${bookPath}`, {
+        const response = await http.get(`/api/download_translations?book_path=${bookPath}`, {
             responseType: "blob",
         });
         let headerLine = response.headers["content-disposition"];

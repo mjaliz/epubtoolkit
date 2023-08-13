@@ -1,9 +1,9 @@
 FROM python:3.10.12
 
-RUN apt update -q \
-    && apt install --no-install-recommends -yq espeak \
-    libespeak-dev \
-    ffmpeg
+RUN apt update -y 
+RUN apt install -y espeak
+RUN apt install -y libespeak-dev
+RUN apt install -y ffmpeg
 
 RUN pip install 'fastapi[all]'
 RUN pip install pandas

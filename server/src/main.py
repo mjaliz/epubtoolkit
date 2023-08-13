@@ -21,7 +21,8 @@ if not os.path.isdir(books_dir):
     os.makedirs(books_dir)
 
 app = FastAPI()
-app.mount("/static", StaticFiles(directory=os.path.join(current_dir, "build", "static")), name="static")
+app.mount("/static", StaticFiles(directory=os.path.join(current_dir,
+          "build", "static")), name="static")
 templates = Jinja2Templates(directory=os.path.join(current_dir, "build"))
 
 
@@ -51,7 +52,7 @@ def index(request: Request):
     return templates.TemplateResponse("index.html", {"request": request})
 
 
-@app.post("/extract_sentence")
+@app.post("/api/extract_sentence")
 async def extract_sentence(file: UploadFile):
     book_dir, book_base_dir = upload_file(file, books_dir)
 
@@ -61,17 +62,18 @@ async def extract_sentence(file: UploadFile):
     return JSONResponse(content={"data": book_base_dir}, status_code=status.HTTP_201_CREATED)
 
 
-@app.get("/download_translations")
+@app.get("/api/download_translations")
 async def download(book_path: str):
     if not os.path.isdir(book_path):
-        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=translations.get("book_not_uploaded"))
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST,
+                            detail=translations.get("book_not_uploaded"))
     file_name = f'{book_path.split("/")[-1].replace(".epub", "")}_csvs.zip'
     file_path = os.path.join(book_path, file_name)
     headers = {'Content-Disposition': f'attachment; filename="{file_name}"'}
     return FileResponse(path=file_path, status_code=status.HTTP_200_OK, headers=headers, media_type='application/zip')
 
 
-@app.post("/sync_audio")
+@app.post("/api/sync_audio")
 async def extract_sentence(file: UploadFile):
     book_dir, book_base_dir = upload_file(file, books_dir)
 
@@ -81,10 +83,11 @@ async def extract_sentence(file: UploadFile):
     return JSONResponse(content={"data": book_base_dir}, status_code=status.HTTP_201_CREATED)
 
 
-@app.get("/download_synced_audio")
+@app.get("/api/download_synced_audio")
 async def download(book_path: str):
     if not os.path.isdir(book_path):
-        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=translations.get("book_not_uploaded"))
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST,
+                            detail=translations.get("book_not_uploaded"))
     file_name = f'{book_path.split("/")[-1]}_synced.epub'
     file_path = os.path.join(book_path, file_name)
     headers = {'Content-Disposition': f'attachment; filename="{file_name}"'}
@@ -92,10 +95,11 @@ async def download(book_path: str):
                         media_type='application/zip+epub')
 
 
-@app.post("/sync_translation")
+@app.post("/api/sync_translation")
 async def extract_sentence(book_file: UploadFile, translation_file: UploadFile):
     book_dir, book_base_dir = upload_file(book_file, books_dir)
-    translation_dir, translation_base_dir = upload_file(translation_file, translations_dir)
+    translation_dir, translation_base_dir = upload_file(
+        translation_file, translations_dir)
 
     epub = Epub(book_dir)
     epub.sync_translation(translation_dir)
@@ -103,10 +107,11 @@ async def extract_sentence(book_file: UploadFile, translation_file: UploadFile):
     return JSONResponse(content={"data": book_base_dir}, status_code=status.HTTP_201_CREATED)
 
 
-@app.get("/download_synced_translation")
+@app.get("/api/download_synced_translation")
 async def download(book_path: str):
     if not os.path.isdir(book_path):
-        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=translations.get("book_not_uploaded"))
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST,
+                            detail=translations.get("book_not_uploaded"))
     file_name = f'{book_path.split("/")[-1]}_synced-t.epub'
     file_path = os.path.join(book_path, file_name)
     headers = {'Content-Disposition': f'attachment; filename="{file_name}"'}
