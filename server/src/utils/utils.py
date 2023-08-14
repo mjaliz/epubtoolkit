@@ -1,5 +1,6 @@
 import os
 import math
+import shutil
 import zipfile
 import spacy
 import pandas as pd
@@ -54,12 +55,14 @@ def sentence_segment(tags):
     return zip(tags, sentences), sentences_count
 
 
-def extract_sentence_to_translate(translate_data_list, epub_files_path):
+def extract_sentence_to_translate(translate_data_list, epub_files_path, tagged_epub_path):
     book_name = os.path.basename(epub_files_path)
     csvs_dir = f'{book_name}_csvs'
     output_dir = os.path.join(epub_files_path, csvs_dir)
     if not os.path.isdir(output_dir):
         os.makedirs(output_dir)
+
+    shutil.move(tagged_epub_path, output_dir)
 
     for td in translate_data_list:
         epub_name = td['epub_name']

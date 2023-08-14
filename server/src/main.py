@@ -15,14 +15,16 @@ from epubtoolkit.epub import Epub
 
 current_dir = os.path.dirname(os.path.realpath(__file__))
 temp_dir = gettempdir()
-books_dir = os.path.join(temp_dir, "books")
-translations_dir = os.path.join(temp_dir, "books", "translations")
+# books_dir = os.path.join(temp_dir, "books")
+books_dir = os.path.join(current_dir, "..", "..", "books")
+translations_dir = os.path.join(books_dir, "translations")
+# translations_dir = os.path.join(temp_dir, "books", "translations")
 if not os.path.isdir(books_dir):
     os.makedirs(books_dir)
 
 app = FastAPI()
 app.mount("/static", StaticFiles(directory=os.path.join(current_dir,
-          "build", "static")), name="static")
+                                                        "build", "static")), name="static")
 templates = Jinja2Templates(directory=os.path.join(current_dir, "build"))
 
 

@@ -4,10 +4,10 @@ import pandas as pd
 from fastapi import HTTPException, status
 from bs4 import BeautifulSoup, Tag
 
-from ..utils.utils import (unzip_file, get_number_of_digits_to_name,
-                           drop_extension, zip_file, sentence_segment,
-                           extract_sentence_to_translate, find_file_dir)
-from ..utils.translator import translations
+from utils.utils import (unzip_file, get_number_of_digits_to_name,
+                         drop_extension, zip_file, sentence_segment,
+                         extract_sentence_to_translate, find_file_dir)
+from utils.translator import translations
 
 try:
     from afaligner import align
@@ -24,7 +24,9 @@ class Epub:
         self._chapters_dir = os.path.join(self._epub_files_path, "..", "chapters")
         self._synced_epub_file = f'{drop_extension(self._epub_file)}_synced.epub'
         self._synced_t_epub_file = f'{drop_extension(self._epub_file)}_synced-t.epub'
+        self._tagged_epub_file = f'{drop_extension(self._epub_file)}_tagged.epub'
         self._synced_epub_path = os.path.join(self._epub_dir, self._synced_epub_file)
+        self._tagged_epub_path = os.path.join(self._epub_dir, self._tagged_epub_file)
         self._synced_t_epub_path = os.path.join(self._epub_dir, self._synced_t_epub_file)
         self._current_dir = os.path.dirname(os.path.realpath(__file__))
         self._epub_txt_files_base_dir = None
@@ -74,7 +76,7 @@ class Epub:
         audio_file_paths.sort()
         return html_file_paths, audio_file_paths
 
-    def _set_id_tag(self):
+    def _set_id_tag_with_audio(self):
 
         html_files_list, audio_files_list = self._pars_content_opf()
         if len(html_files_list) != len(audio_files_list):
@@ -103,6 +105,24 @@ class Epub:
             except FileNotFoundError as e:
                 raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST,
                                     detail=translations.get("no_audio_file"))
+
+    def _set_id_tag(self):
+
+        html_files_list, _ = self._pars_content_opf()
+
+        chapter_num = 1
+        for i in range(len(html_files_list)):
+            html_filepath = html_files_list[i]
+            soup, input_file, output_dir, _ = self._extract_sentences(html_filepath, chapter_num)
+
+            chapter_num += 1
+            with open(input_file, 'w') as f:
+                f.write(soup.prettify())
+
+            text_dir = os.path.join(output_dir, "sync_text")
+            if not os.path.isdir(text_dir):
+                os.makedirs(text_dir)
+            shutil.copy(input_file, text_dir)
 
     def _sync(self, alignment_radius=None, alignment_skip_penalty=None, language="eng"):
         chapter_dirs = (os.path.join(self._chapters_dir, f) for f in sorted(os.listdir(self._chapters_dir)))
@@ -174,8 +194,10 @@ class Epub:
             translate_data_dict = {'epub_name': html_filepath, 'translate_data': translate_data}
             translate_data_list.append(translate_data_dict)
             chapter_num += 1
-        extract_sentence_to_translate(translate_data_list, self._epub_dir)
-        shutil.rmtree(self._chapters_dir)
+        self._set_id_tag()
+        self._zip_epub(self._tagged_epub_path)
+        extract_sentence_to_translate(translate_data_list, self._epub_dir, self._tagged_epub_path)
+        self._cleanup()
 
     def sync_translation(self, csvs):
         csvs_dir, csvs_file = os.path.split(csvs)
@@ -206,7 +228,7 @@ class Epub:
         self._cleanup()
 
     def sync_audio(self):
-        self._set_id_tag()
+        self._set_id_tag_with_audio()
         self._sync()
         self._zip_epub(self._synced_epub_path)
         self._cleanup()
