@@ -4,10 +4,10 @@ import pandas as pd
 from fastapi import HTTPException, status
 from bs4 import BeautifulSoup, Tag
 
-from utils.utils import (unzip_file, get_number_of_digits_to_name,
+from ..utils.utils import (unzip_file, get_number_of_digits_to_name,
                          drop_extension, zip_file, sentence_segment,
                          extract_sentence_to_translate, find_file_dir)
-from utils.translator import translations
+from ..utils.translator import translations
 
 try:
     from afaligner import align
