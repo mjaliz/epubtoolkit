@@ -5,8 +5,8 @@ from fastapi import HTTPException, status
 from bs4 import BeautifulSoup, Tag
 
 from ..utils.utils import (unzip_file, get_number_of_digits_to_name,
-                         drop_extension, zip_file, sentence_segment,
-                         extract_sentence_to_translate, find_file_dir)
+                           drop_extension, zip_file, sentence_segment,
+                           extract_sentence_to_translate, find_file_dir)
 from ..utils.translator import translations
 
 try:
@@ -153,7 +153,7 @@ class Epub:
                     self._cleanup()
                     raise Exception(ex, "If you want to resync the book, Please set the resync argument to True.")
 
-    def _extract_sentences(self, html_filepath, chapter_num):
+    def _pars_html(self, html_filepath, chapter_num):
         output_dir = os.path.join(self._chapters_dir, f'c{chapter_num}')
         if not os.path.isdir(output_dir):
             os.makedirs(output_dir)
@@ -165,6 +165,10 @@ class Epub:
         tags_with_text = [tag for tag in soup.find_all() if
                           len(tag.contents) == 1 and not isinstance(tag.contents[0],
                                                                     Tag) and tag.name != 'title' and tag.text.strip()]
+        return soup, tags_with_text, input_file, output_dir
+
+    def _extract_sentences(self, html_filepath, chapter_num):
+        soup, tags_with_text, input_file, output_dir = self._pars_html(html_filepath, chapter_num)
         sentences_zip, fragments_num = sentence_segment(tags_with_text)
         n = get_number_of_digits_to_name(fragments_num)
 
@@ -190,7 +194,7 @@ class Epub:
         chapter_num = 1
         translate_data_list = []
         for html_filepath in html_files_list:
-            soup, input_file, output_dir, translate_data = self._extract_sentences(html_filepath, chapter_num)
+            _, _, _, translate_data = self._extract_sentences(html_filepath, chapter_num)
             translate_data_dict = {'epub_name': html_filepath, 'translate_data': translate_data}
             translate_data_list.append(translate_data_dict)
             chapter_num += 1
@@ -203,13 +207,46 @@ class Epub:
         csvs_dir, csvs_file = os.path.split(csvs)
         unzip_file(csvs, csvs_dir)
         csvs_path = drop_extension(csvs_file)
-        extracted_csvs_path = os.path.join(csvs_dir, csvs_path)
-        html_files_list = self._pars_content_opf()
-        csv_files = (os.path.join(extracted_csvs_path, f) for f in sorted(os.listdir(extracted_csvs_path)))
+        extracted_csvs_path = os.path.join(csvs_dir)
+        html_files_list, _ = self._pars_content_opf()
+        csv_files = (os.path.join(extracted_csvs_path, f) for f in sorted(os.listdir(extracted_csvs_path)) if
+                     f.endswith(".csv"))
+
         for i, csv_file in enumerate(csv_files):
+            soup, tags_with_text, input_file, output_dir = self._pars_html(html_files_list[i], i + 1)
             _, file_name = os.path.split(csv_file)
             df = pd.read_csv(csv_file)
             df.fillna("", inplace=True)
+
+            sentences_start_index = 0
+            fragment_id = 1
+            for j in range(len(tags_with_text)):
+                sentences = df["sentence"].tolist()[sentences_start_index:]
+                tag = tags_with_text[j]
+                tag_text: str = tag.string
+                tag.string = ""
+                k = 0
+                for sentence in sentences:
+                    k += 1
+                    sent_start_index = tag_text.find(sentence)
+                    if sent_start_index == -1:
+                        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="bad translation")
+                    sent_end_index = sent_start_index + len(sentence)
+                    span_tag = soup.new_tag("span", attrs={"id": fragment_id})
+                    span_tag.string = sentence
+                    fragment_id += 1
+                    tag.append(span_tag)
+                    if sent_end_index == len(tag_text):
+                        sentences_start_index += k
+                        break
+
+            with open(input_file, 'w') as f:
+                f.write(soup.prettify())
+
+            text_dir = os.path.join(output_dir, "sync_text")
+            if not os.path.isdir(text_dir):
+                os.makedirs(text_dir)
+            shutil.copy(input_file, text_dir)
 
             text_list = ['<?xml version="1.0" encoding="utf-8"?> version="3.0">\n', '<ttx language="fa">\n']
             for index, row in df.iterrows():
