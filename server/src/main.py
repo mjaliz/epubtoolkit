@@ -17,10 +17,10 @@ from .db.models import EpubBook
 
 current_dir = os.path.dirname(os.path.realpath(__file__))
 temp_dir = gettempdir()
-# books_dir = os.path.join(temp_dir, "books")
-books_dir = os.path.join(current_dir, "..", "..", "books")
-translations_dir = os.path.join(books_dir, "translations")
-# translations_dir = os.path.join(temp_dir, "books", "translations")
+# books_dir = os.path.join(current_dir, "..", "..", "books")
+# translations_dir = os.path.join(books_dir, "translations")
+books_dir = os.path.join(temp_dir, "books")
+translations_dir = os.path.join(temp_dir, "books", "translations")
 if not os.path.isdir(books_dir):
     os.makedirs(books_dir)
 
