@@ -24,7 +24,7 @@ class Epub:
         self._epub_files_path = os.path.join(self._epub_dir, "epub_files")
         self._chapters_dir = os.path.join(self._epub_files_path, "..", "chapters")
         self._synced_epub_file = f'{drop_extension(self._epub_file)}_synced.epub'
-        self._synced_t_epub_file = f'{drop_extension(self._epub_file)}_synced-t.epub'
+        self._synced_t_epub_file = f'{drop_extension(self._epub_file)}_t.epub'
         self._tagged_epub_file = f'{drop_extension(self._epub_file)}_tagged.epub'
         self._synced_epub_path = os.path.join(self._epub_dir, self._synced_epub_file)
         self._tagged_epub_path = os.path.join(self._epub_dir, self._tagged_epub_file)
