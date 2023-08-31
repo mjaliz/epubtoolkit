@@ -1,6 +1,6 @@
 import os
 import shutil
-from fastapi import FastAPI, UploadFile, HTTPException, status, Request, Query
+from fastapi import FastAPI, UploadFile, HTTPException, status, Request, Query, Form, File
 from fastapi.responses import JSONResponse
 from fastapi.responses import HTMLResponse
 from fastapi.staticfiles import StaticFiles
@@ -89,11 +89,11 @@ async def download(book_path: str):
 
 
 @app.post("/api/sync_audio")
-async def extract_sentence(file: UploadFile):
+async def extract_sentence(file: UploadFile = File(...), has_translation: bool = Form(...)):
     book_dir, book_base_dir = upload_file(file, books_dir)
 
     epub = Epub(book_dir)
-    epub.sync_audio()
+    epub.sync_audio(has_translation)
 
     return JSONResponse(content={"data": book_base_dir}, status_code=status.HTTP_201_CREATED)
 

@@ -8,14 +8,22 @@ const SyncAudioScreen = () => {
   const [bookPath, setBookPath] = useState(undefined);
   const [loading, setLoading] = useState(false);
   const [success, setSuccess] = useState(false);
+  const [bookHasTranslation, setBookHasTranslation] = useState(true);
+
   const handleSelect = (e) => {
     setFile(e.target.files[0]);
     setSuccess(false);
   };
+
+  const handleCheck = () => {
+    setBookHasTranslation(!bookHasTranslation);
+  };
+
   const handleSubmit = async () => {
     if (file !== null) {
       const formData = new FormData();
       formData.append("file", file);
+      formData.append("has_translation", bookHasTranslation);
       setLoading(true);
       try {
         const { data } = await http.post("/api/sync_audio", formData, {
@@ -48,6 +56,24 @@ const SyncAudioScreen = () => {
   };
   return (
     <div className="h-100 d-flex flex-column align-items-start justify-content-start py-5">
+      <div class="form-check">
+        <input
+          class="form-check-input"
+          type="checkbox"
+          value=""
+          id="flexCheckDefault"
+          checked={bookHasTranslation}
+          onChange={handleCheck}
+        />
+        <label class="form-check-label" for="flexCheckDefault">
+          Book has translation
+        </label>
+      </div>
+      <strong className="mt-2">
+        Note: If the book has translation you should first do the translation
+        sync first.
+      </strong>
+      <hr />
       <div className="input-group mb-3">
         <input
           type="file"

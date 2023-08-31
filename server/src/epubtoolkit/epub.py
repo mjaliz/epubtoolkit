@@ -77,7 +77,7 @@ class Epub:
         audio_file_paths.sort()
         return html_file_paths, audio_file_paths
 
-    def _set_id_tag_with_audio(self):
+    def _set_id_tag_with_audio(self, has_translation: bool):
 
         html_files_list, audio_files_list = self._pars_content_opf()
         if len(html_files_list) != len(audio_files_list):
@@ -87,8 +87,13 @@ class Epub:
         for i in range(len(html_files_list)):
             html_filepath = html_files_list[i]
             audio_file_src = os.path.join(self._epub_files_path, audio_files_list[i])
-            # check for translation if book does not have translation extract sentences
-            input_file, output_dir = self._make_chapter_dir(html_filepath, chapter_num)
+
+            if has_translation:
+                input_file, output_dir = self._make_chapter_dir(html_filepath, chapter_num)
+            else:
+                soup, input_file, output_dir, _ = self._extract_sentences(html_filepath, chapter_num)
+                with open(input_file, 'w') as f:
+                    f.write(soup.prettify())
 
             chapter_num += 1
             text_dir = os.path.join(output_dir, "sync_text")
@@ -136,6 +141,7 @@ class Epub:
                     shutil.move(smil, smils_output)
                 except Exception as ex:
                     self._cleanup()
+                    # TODO: handle exception in better way
                     raise Exception(ex, "If you want to resync the book, Please set the resync argument to True.")
 
     def _make_chapter_dir(self, html_filepath, chapter_num):
@@ -261,8 +267,8 @@ class Epub:
         self._zip_epub(self._synced_t_epub_path)
         self._cleanup()
 
-    def sync_audio(self):
-        self._set_id_tag_with_audio()
+    def sync_audio(self, has_translation):
+        self._set_id_tag_with_audio(has_translation)
         self._sync()
         self._zip_epub(self._synced_epub_path)
         self._cleanup()
