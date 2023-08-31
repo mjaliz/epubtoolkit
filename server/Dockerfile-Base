@@ -1,0 +1,15 @@
+FROM python:3.10.12
+
+RUN apt update -y
+RUN apt install -y espeak
+RUN apt install -y libespeak-dev
+RUN apt install -y ffmpeg
+
+RUN pip install 'fastapi[all]'
+RUN pip install pandas
+RUN pip install beautifulsoup4
+RUN pip install numpy
+RUN pip install aeneas
+RUN pip install afaligner
+RUN pip install -U spacy
+RUN python3 -m spacy download en_core_web_trf
