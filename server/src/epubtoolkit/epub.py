@@ -1,4 +1,5 @@
 import os
+from copy import copy
 import shutil
 import pandas as pd
 from fastapi import HTTPException, status
@@ -86,12 +87,9 @@ class Epub:
         for i in range(len(html_files_list)):
             html_filepath = html_files_list[i]
             audio_file_src = os.path.join(self._epub_files_path, audio_files_list[i])
-            soup, input_file, output_dir, _ = self._extract_sentences(html_filepath, chapter_num)
+            input_file, output_dir = self._make_chapter_dir(html_filepath, chapter_num)
 
             chapter_num += 1
-            with open(input_file, 'w') as f:
-                f.write(soup.prettify())
-
             text_dir = os.path.join(output_dir, "sync_text")
             if not os.path.isdir(text_dir):
                 os.makedirs(text_dir)
@@ -106,24 +104,6 @@ class Epub:
                 raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST,
                                     detail=translations.get("no_audio_file"))
 
-    def _set_id_tag(self):
-
-        html_files_list, _ = self._pars_content_opf()
-
-        chapter_num = 1
-        for i in range(len(html_files_list)):
-            html_filepath = html_files_list[i]
-            soup, input_file, output_dir, _ = self._extract_sentences(html_filepath, chapter_num)
-
-            chapter_num += 1
-            with open(input_file, 'w') as f:
-                f.write(soup.prettify())
-
-            text_dir = os.path.join(output_dir, "sync_text")
-            if not os.path.isdir(text_dir):
-                os.makedirs(text_dir)
-            shutil.copy(input_file, text_dir)
-
     def _sync(self, alignment_radius=None, alignment_skip_penalty=None, language="eng"):
         chapter_dirs = (os.path.join(self._chapters_dir, f) for f in sorted(os.listdir(self._chapters_dir)))
         for chapter_dir in chapter_dirs:
@@ -131,15 +111,19 @@ class Epub:
             audio_dir = os.path.join(chapter_dir, 'audio')
             output_dir = os.path.join(chapter_dir, "smil")
             print('Calling afaligner for syncing...')
-            sync_map = align(
-                sync_text_dir, audio_dir, output_dir,
-                output_format='smil',
-                sync_map_text_path_prefix='../text/',
-                sync_map_audio_path_prefix='../audio/',
-                radius=alignment_radius,
-                skip_penalty=alignment_skip_penalty,
-                language=language,
-            )
+            try:
+                sync_map = align(
+                    sync_text_dir, audio_dir, output_dir,
+                    output_format='smil',
+                    sync_map_text_path_prefix='../text/',
+                    sync_map_audio_path_prefix='../audio/',
+                    radius=alignment_radius,
+                    skip_penalty=alignment_skip_penalty,
+                    language=language,
+                )
+            except ValueError as e:
+                raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST,
+                                    detail=translations.get("no_fragment_in_text"))
             if sync_map is not None:
                 print('✔ Text and audio have been successfully synced.')
 
@@ -153,12 +137,17 @@ class Epub:
                     self._cleanup()
                     raise Exception(ex, "If you want to resync the book, Please set the resync argument to True.")
 
-    def _pars_html(self, html_filepath, chapter_num):
+    def _make_chapter_dir(self, html_filepath, chapter_num):
         output_dir = os.path.join(self._chapters_dir, f'c{chapter_num}')
         if not os.path.isdir(output_dir):
             os.makedirs(output_dir)
 
         input_file = os.path.join(self._epub_files_path, html_filepath)
+        return input_file, output_dir
+
+    def _pars_html(self, html_filepath, chapter_num):
+        input_file, output_dir = self._make_chapter_dir(html_filepath, chapter_num)
+
         with open(input_file, 'r') as fp:
             soup = BeautifulSoup(fp, 'html.parser')
 
@@ -170,18 +159,16 @@ class Epub:
     def _extract_sentences(self, html_filepath, chapter_num):
         soup, tags_with_text, input_file, output_dir = self._pars_html(html_filepath, chapter_num)
         sentences_zip, fragments_num = sentence_segment(tags_with_text)
-        n = get_number_of_digits_to_name(fragments_num)
 
         fragment_id = 1
-        translate_data = {"fragment_id": [], "sentence": [], "translation": []}
+        translate_data = {"sentence": [], "translation": []}
         for t, sents in sentences_zip:
             span_list = []
             t.string = ''
             for s in sents:
-                f_id = f'f{fragment_id:0>{n}}'
+                f_id = f'f{fragment_id}'
                 span_tag = soup.new_tag("span", attrs={"id": f_id})
                 translate_data["sentence"].append(s.text)
-                translate_data["fragment_id"].append(f_id)
                 translate_data["translation"].append("")
                 span_tag.string = s.text
                 span_list.append(span_tag)
@@ -198,9 +185,7 @@ class Epub:
             translate_data_dict = {'epub_name': html_filepath, 'translate_data': translate_data}
             translate_data_list.append(translate_data_dict)
             chapter_num += 1
-        self._set_id_tag()
-        self._zip_epub(self._tagged_epub_path)
-        extract_sentence_to_translate(translate_data_list, self._epub_dir, self._tagged_epub_path)
+        extract_sentence_to_translate(translate_data_list, self._epub_dir)
         self._cleanup()
 
     def sync_translation(self, csvs):
@@ -220,23 +205,33 @@ class Epub:
 
             sentences_start_index = 0
             fragment_id = 1
+            f_ids = []
             for j in range(len(tags_with_text)):
                 sentences = df["sentence"].tolist()[sentences_start_index:]
                 tag = tags_with_text[j]
-                tag_text: str = tag.string
+                tag_text: str = tag.string.strip()
+                tag_text_copy = list(copy(tag_text))
                 tag.string = ""
                 k = 0
                 for sentence in sentences:
                     k += 1
                     sent_start_index = tag_text.find(sentence)
                     if sent_start_index == -1:
-                        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="bad translation")
+                        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST,
+                                            detail=translations.get("bad_translation"))
                     sent_end_index = sent_start_index + len(sentence)
-                    span_tag = soup.new_tag("span", attrs={"id": fragment_id})
+                    for c in range(sent_start_index, sent_end_index):
+                        tag_text_copy[c] = ""
+                    f_id = f"f{fragment_id}"
+                    f_ids.append(f_id)
+                    span_tag = soup.new_tag("span", attrs={"id": f_id})
                     span_tag.string = sentence
                     fragment_id += 1
                     tag.append(span_tag)
                     if sent_end_index == len(tag_text):
+                        if "".join(tag_text_copy).strip(" ") != "":
+                            raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST,
+                                                detail=translations.get("bad_translation"))
                         sentences_start_index += k
                         break
 
@@ -248,6 +243,7 @@ class Epub:
                 os.makedirs(text_dir)
             shutil.copy(input_file, text_dir)
 
+            df["fragment_id"] = f_ids
             text_list = ['<?xml version="1.0" encoding="utf-8"?> version="3.0">\n', '<ttx language="fa">\n']
             for index, row in df.iterrows():
                 f_id = row['fragment_id']
