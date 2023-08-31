@@ -87,6 +87,7 @@ class Epub:
         for i in range(len(html_files_list)):
             html_filepath = html_files_list[i]
             audio_file_src = os.path.join(self._epub_files_path, audio_files_list[i])
+            # check for translation if book does not have translation extract sentences
             input_file, output_dir = self._make_chapter_dir(html_filepath, chapter_num)
 
             chapter_num += 1
