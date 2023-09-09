@@ -7,6 +7,7 @@ RUN apt install -y ffmpeg
 
 RUN pip install 'fastapi[all]'
 RUN pip install pandas
+RUN pip install openpyxl
 RUN pip install beautifulsoup4
 RUN pip install numpy
 RUN pip install aeneas

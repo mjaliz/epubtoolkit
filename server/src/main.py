@@ -25,14 +25,6 @@ if not os.path.isdir(books_dir):
     os.makedirs(books_dir)
 
 app = FastAPI()
-app.mount("/static", StaticFiles(directory=os.path.join(current_dir,
-                                                        "build", "static")), name="static")
-templates = Jinja2Templates(directory=os.path.join(current_dir, "build"))
-
-
-@app.on_event("startup")
-async def start_db():
-    await init()
 
 
 @app.exception_handler(StarletteHTTPException)
@@ -56,11 +48,6 @@ def upload_file(file: UploadFile, base_dir):
     return book_dir, book_base_dir
 
 
-@app.get("/", response_class=HTMLResponse)
-def index(request: Request):
-    return templates.TemplateResponse("index.html", {"request": request})
-
-
 @app.post("/api/upload_book")
 async def upload_book(book: EpubBook):
     await book.create()
@@ -82,7 +69,7 @@ async def download(book_path: str):
     if not os.path.isdir(book_path):
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST,
                             detail=translations.get("book_not_uploaded"))
-    file_name = f'{book_path.split("/")[-1].replace(".epub", "")}_csvs.zip'
+    file_name = f'{book_path.split("/")[-1].replace(".epub", "")}_xlsxs.zip'
     file_path = os.path.join(book_path, file_name)
     headers = {'Content-Disposition': f'attachment; filename="{file_name}"'}
     return FileResponse(path=file_path, status_code=status.HTTP_200_OK, headers=headers, media_type='application/zip')

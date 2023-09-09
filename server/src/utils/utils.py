@@ -57,8 +57,8 @@ def sentence_segment(tags):
 
 def extract_sentence_to_translate(translate_data_list, epub_files_path):
     book_name = os.path.basename(epub_files_path)
-    csvs_dir = f'{book_name}_csvs'
-    output_dir = os.path.join(epub_files_path, csvs_dir)
+    xlsxs_dir = f'{book_name}_xlsxs'
+    output_dir = os.path.join(epub_files_path, xlsxs_dir)
     if not os.path.isdir(output_dir):
         os.makedirs(output_dir)
 
@@ -67,9 +67,9 @@ def extract_sentence_to_translate(translate_data_list, epub_files_path):
         translate_data = td['translate_data']
         file_name = drop_extension(epub_name)
         df = pd.DataFrame(translate_data)
-        df.to_csv(os.path.join(output_dir, f'{file_name}.csv'), index=False)
+        df.to_excel(os.path.join(output_dir, f'{file_name}.xlsx'), index=False)
 
-    zip_file(output_dir, os.path.join(epub_files_path, f"{csvs_dir}.zip"))
+    zip_file(output_dir, os.path.join(epub_files_path, f"{xlsxs_dir}.zip"))
 
 
 def translator(text):
